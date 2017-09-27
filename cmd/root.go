@@ -90,7 +90,7 @@ func initConfig() {
 	}
 
 	viper.SetDefault("hook.githome", "/home/git/gogs-repositories")
-	puppetServers := []string{"puppetserver2.infra.prod.ci"}
+	puppetServers := []string{"puppetserver1.cz2.cloudevelops.lan","puppetserver2.cz2.cloudevelops.lan", "puppetserver3.cz2.cloudevelops.lan", "puppetserver4.cz2.cloudevelops.lan", "puppetserver5.cz2.cloudevelops.lan", "puppetserver6.cz2.cloudevelops.lan", "puppetserver7.cz2.cloudevelops.lan", "puppetserver8.cz2.cloudevelops.lan", "puppetserver9.cz2.cloudevelops.lan"}
 	viper.SetDefault("hook.puppetservers", puppetServers)
 
 	viper.AutomaticEnv() // read in environment variables that match
