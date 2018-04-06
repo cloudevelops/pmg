@@ -31,6 +31,7 @@ import (
 
 	"encoding/json"
 
+	//	"github.com/davecgh/go-spew/spew"
 	"github.com/gorilla/mux"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
@@ -82,7 +83,7 @@ func homePage(w http.ResponseWriter, r *http.Request) {
 }
 
 func doHook(w http.ResponseWriter, r *http.Request) {
-	fmt.Fprintf(w, "Processing hook !")
+	log.Debugf("Start processing hook !")
 	// Read request
 	body, err := ioutil.ReadAll(r.Body)
 	if err != nil {
@@ -102,6 +103,7 @@ func doHook(w http.ResponseWriter, r *http.Request) {
 	gitHome := viper.GetString("hook.githome")
 	//spew.Dump(gitHome)
 	cmd := exec.Command("git", "--git-dir="+gitHome+"/"+repoFullName+".git", "cat-file", "blob", "HEAD:metadata.json")
+	//spew.Dump(cmd)
 	var outb bytes.Buffer
 	cmd.Stdout = &outb
 	err = cmd.Run()
@@ -140,6 +142,16 @@ func doHook(w http.ResponseWriter, r *http.Request) {
 		log.Debugf("Found hiera repo")
 		updateHiera(repoName[1])
 	}
+	// Determine if repository is puppet r10k repository
+	if repoName[1] == "puppet_r10k" {
+		log.Debugf("Found puppet r10k repo")
+		updatePuppetR10k(repoName[1])
+	}
+	// Determine if repository is hiera r10k repository
+	if repoName[1] == "hiera_r10k" {
+		log.Debugf("Found hiera r10k repo")
+		updateHieraR10k(repoName[1])
+	}
 }
 
 func updateModule(module string) {
@@ -158,6 +170,26 @@ func updateHiera(module string) {
 	for _, puppetServer := range puppetServers {
 		wg.Add(1)
 		go executeSshCommand(puppetServer, "r10k deploy module "+module+" --config /etc/r10k/hiera_r10k.yaml")
+	}
+	wg.Wait()
+}
+
+func updatePuppetR10k(module string) {
+	log.Debugf("Updating puppet r10k data: " + module)
+	puppetServers := viper.GetStringSlice("hook.puppetservers")
+	for _, puppetServer := range puppetServers {
+		wg.Add(1)
+		go executeSshCommand(puppetServer, "r10k deploy environment -p --config /etc/r10k/puppet_r10k.yaml")
+	}
+	wg.Wait()
+}
+
+func updateHieraR10k(module string) {
+	log.Debugf("Updating hiera r10k data: " + module)
+	puppetServers := viper.GetStringSlice("hook.puppetservers")
+	for _, puppetServer := range puppetServers {
+		wg.Add(1)
+		go executeSshCommand(puppetServer, "r10k deploy environment -p --config /etc/r10k/hiera_r10k.yaml")
 	}
 	wg.Wait()
 }
