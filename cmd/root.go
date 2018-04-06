@@ -91,7 +91,7 @@ func initConfig() {
 
 	viper.SetDefault("hook.githome", "/srv")
 	//puppetServers := []string{"puppetca1.infra.prod.ci", "puppetserver1.infra.prod.ci", "puppetserver2.infra.prod.ci", "puppetserver3.infra.prod.ci", "puppetserver4.infra.prod.ci"}
-	puppetServers := []string{"puppetca1.cz2.cloudevelops.com", "puppetserver1.cz2.cloudevelops.lan", "puppetserver2.cz2.cloudevelops.lan", "puppetserver3.cz2.cloudevelops.lan", "puppetserver4.cz2.cloudevelops.lan", "puppetserver5.cz2.cloudevelops.lan", "puppetserver6.cz2.cloudevelops.lan", "puppetserver7.cz2.cloudevelops.lan", "puppetserver8.cz2.cloudevelops.lan", "puppetserver9.cz2.cloudevelops.lan"}
+	puppetServers := []string{"puppetserver1.cz2.cloudevelops.lan", "puppetserver2.cz2.cloudevelops.lan", "puppetserver3.cz2.cloudevelops.lan", "puppetserver4.cz2.cloudevelops.lan", "puppetserver5.cz2.cloudevelops.lan", "puppetserver6.cz2.cloudevelops.lan", "puppetserver7.cz2.cloudevelops.lan", "puppetserver8.cz2.cloudevelops.lan", "puppetserver9.cz2.cloudevelops.lan", "puppetserver10.cz2.cloudevelops.lan", "puppetserver11.cz2.cloudevelops.lan", "puppetserver12.cz2.cloudevelops.lan", "puppetserver1.cz2.gtflixtv.lan", "puppetserver2.cz2.gtflixtv.lan", "puppetserver3.cz2.gtflixtv.lan", "puppetserver4.cz2.gtflixtv.lan", "puppetserver5.cz2.gtflixtv.lan", "puppetserver6.cz2.gtflixtv.lan"}
 	viper.SetDefault("hook.puppetservers", puppetServers)
 
 	viper.AutomaticEnv() // read in environment variables that match
