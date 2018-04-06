@@ -118,8 +118,12 @@ func doHook(w http.ResponseWriter, r *http.Request) {
 			log.Debugf("Module medatada sucessfuly parsed !")
 			moduleFullName := metadata["name"].(string)
 			moduleFullNameSplit := strings.Split(moduleFullName, "-")
-			module = moduleFullNameSplit[1]
-			updateModule(module)
+			if len(moduleFullNameSplit) < 2 {
+				log.Debugf("Invalid module name '" + moduleFullName + "', should be [organization]-[module_name] !!!")
+			} else {
+				module = moduleFullNameSplit[1]
+				updateModule(module)
+			}
 		}
 	} else {
 		cmd := exec.Command("git", "--git-dir="+gitHome+"/"+repoFullName+".git", "cat-file", "blob", "HEAD:Modulefile")
@@ -128,7 +132,7 @@ func doHook(w http.ResponseWriter, r *http.Request) {
 		err = cmd.Run()
 		if err == nil {
 			// Puppet module with Modulefile found
-			log.Debugf("Git found Modulefile, parsing !")
+			log.Debugf("Git found Modulefile, parsing. PLEASE UPDATE THE MODULE, Modulefile is long time obsolete !!!")
 			// Unmarshall JSON into plain interface
 			moduleFullName := outb.String()
 			moduleFullNameSplit := strings.Split(moduleFullName, "'")
