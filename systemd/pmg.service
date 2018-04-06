@@ -1,0 +1,7 @@
+[Unit]
+Description=Puppet Management Go service
+After=gogs.service
+
+[Service]
+ExecStart=/usr/local/bin/pmg hook
+ExecStop=/usr/bin/killall pmg
