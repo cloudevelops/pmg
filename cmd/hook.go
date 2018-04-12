@@ -22,14 +22,14 @@ package cmd
 
 import (
 	"bytes"
+	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"net/http"
 	"os/exec"
 	"strings"
 	"sync"
-
-	"encoding/json"
+	"time"
 
 	//	"github.com/davecgh/go-spew/spew"
 	"github.com/gorilla/mux"
@@ -38,6 +38,7 @@ import (
 )
 
 var wg sync.WaitGroup
+var queue chan string
 
 // hookCmd represents the hook command
 var hookCmd = &cobra.Command{
@@ -160,47 +161,113 @@ func doHook(w http.ResponseWriter, r *http.Request) {
 
 func updateModule(module string) {
 	log.Debugf("Updating puppet module: " + module)
+	var executeGroup sync.WaitGroup
+	//	queue := make(chan string, 10)
 	puppetServers := viper.GetStringSlice("hook.puppetservers")
 	for _, puppetServer := range puppetServers {
-		wg.Add(1)
-		go executeSshCommand(puppetServer, "r10k deploy module "+module+" --config /etc/r10k/puppet_r10k.yaml")
+		executeGroup.Add(1)
+		go executeSshCommand(puppetServer, "r10k deploy module "+module+" --config /etc/r10k/puppet_r10k.yaml", &executeGroup)
 	}
-	wg.Wait()
+	log.Debugf("Waiting for finish of deploy: " + module)
+	executeGroup.Wait()
+	log.Debugf("Puppet module updated: " + module)
 }
 
 func updateHiera(module string) {
 	log.Debugf("Updating hiera data: " + module)
+	var executeGroup sync.WaitGroup
+	//	queue := make(chan string, 1)
 	puppetServers := viper.GetStringSlice("hook.puppetservers")
 	for _, puppetServer := range puppetServers {
-		wg.Add(1)
-		go executeSshCommand(puppetServer, "r10k deploy module "+module+" --config /etc/r10k/hiera_r10k.yaml")
+		executeGroup.Add(1)
+		go executeSshCommand(puppetServer, "r10k deploy module "+module+" --config /etc/r10k/hiera_r10k.yaml", &executeGroup)
 	}
-	wg.Wait()
+	log.Debugf("Waiting for finish of deploy: " + module)
+	executeGroup.Wait()
+	log.Debugf("Hiera data updated: " + module)
 }
 
 func updatePuppetR10k(module string) {
 	log.Debugf("Updating puppet r10k data: " + module)
+	var executeGroup sync.WaitGroup
+	//	queue := make(chan string, 10)
 	puppetServers := viper.GetStringSlice("hook.puppetservers")
 	for _, puppetServer := range puppetServers {
-		wg.Add(1)
-		go executeSshCommand(puppetServer, "r10k deploy environment -p --config /etc/r10k/puppet_r10k.yaml")
+		executeGroup.Add(1)
+		go executeSshCommand(puppetServer, "r10k deploy environment -p --config /etc/r10k/puppet_r10k.yaml", &executeGroup)
 	}
-	wg.Wait()
+	log.Debugf("Waiting for finish of deploy: " + module)
+	executeGroup.Wait()
+	log.Debugf("Puppet R10k updated: " + module)
 }
 
 func updateHieraR10k(module string) {
 	log.Debugf("Updating hiera r10k data: " + module)
+	var executeGroup sync.WaitGroup
+	//	queue := make(chan string, 10)
 	puppetServers := viper.GetStringSlice("hook.puppetservers")
 	for _, puppetServer := range puppetServers {
-		wg.Add(1)
-		go executeSshCommand(puppetServer, "r10k deploy environment -p --config /etc/r10k/hiera_r10k.yaml")
+		executeGroup.Add(1)
+		go executeSshCommand(puppetServer, "r10k deploy environment -p --config /etc/r10k/hiera_r10k.yaml", &executeGroup)
 	}
-	wg.Wait()
+	log.Debugf("Waiting for finish of deploy: " + module)
+	executeGroup.Wait()
+	log.Debugf("Hiera R10k updated: " + module)
 }
 
-func executeSshCommand(host string, command string) {
-	defer wg.Done()
+func executeSshCommand(host string, command string, executeGroup *sync.WaitGroup) {
+	defer executeGroup.Done()
 	cmd := exec.Command("ssh", "root@"+host, command)
+	var outb bytes.Buffer
+	cmd.Stdout = &outb
+	err := cmd.Run()
+	cmd.Process.Kill()
+	if err == nil {
+		// Puppet module with Modulefile found
+		log.Debugf("Command: " + command + " on host:" + host + " did run OK, result:" + outb.String())
+	} else {
+		log.Debugf("Command: " + command + " on host:" + host + " did run with Error:" + err.Error() + ", result: " + outb.String() + ",retrying in 1s !")
+		time.Sleep(1 * time.Second)
+		cmdx := exec.Command("ssh", "root@"+host, command)
+		var outbx bytes.Buffer
+		cmdx.Stdout = &outbx
+		err := cmdx.Run()
+		cmdx.Process.Kill()
+		if err == nil {
+			// Puppet module with Modulefile found
+			log.Debugf("Command: " + command + " on host:" + host + " did run OK, result:" + outb.String())
+		} else {
+			log.Debugf("Command: " + command + " on host:" + host + " did run with Error:" + err.Error() + ", result: " + outb.String() + ",retrying in 5s !")
+			time.Sleep(1 * time.Second)
+			cmd := exec.Command("ssh", "root@"+host, command)
+			var outb bytes.Buffer
+			cmd.Stdout = &outb
+			err := cmd.Run()
+			if err == nil {
+				// Puppet module with Modulefile found
+				log.Debugf("Command: " + command + " on host:" + host + " did run OK, result:" + outb.String())
+			} else {
+				log.Debugf("Command: " + command + " on host:" + host + " did run with Error:" + err.Error() + ", result: " + outb.String() + ",retrying in another 5s !")
+				time.Sleep(1 * time.Second)
+				cmd := exec.Command("ssh", "root@"+host, command)
+				var outb bytes.Buffer
+				cmd.Stdout = &outb
+				err := cmd.Run()
+				if err == nil {
+					// Puppet module with Modulefile found
+					log.Debugf("Command: " + command + " on host:" + host + " did run OK, result:" + outb.String())
+				} else {
+					log.Debugf("Command: " + command + " on host:" + host + " did run with Error:" + err.Error() + ", result: " + outb.String() + ",giving up !")
+					//					queue <- host
+				}
+			}
+		}
+	}
+}
+
+func executeSshCommand2(host string, command string, executeGroup *sync.WaitGroup) {
+	defer executeGroup.Done()
+	cmd := exec.Command("uname", "-a")
 	var outb bytes.Buffer
 	cmd.Stdout = &outb
 	err := cmd.Run()
@@ -208,6 +275,6 @@ func executeSshCommand(host string, command string) {
 		// Puppet module with Modulefile found
 		log.Debugf("Command: " + command + " on host:" + host + " did run OK, result:" + outb.String())
 	} else {
-		log.Debugf("Command: " + command + " on host:" + host + " did run with Error:" + err.Error() + ", result: " + outb.String())
+		log.Debugf("Command: " + command + " on host:" + host + " did run with Error:" + err.Error() + ", result: " + outb.String() + ",giving up !")
 	}
 }
